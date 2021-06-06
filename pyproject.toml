@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "quantum-simulator-api"
+version = "0.1.0"
+description = ""
+authors = ["bbrfkr <bbrfkr@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fastapi = "^0.65.1"
+quantum-simulator = {git = "https://github.com/bbrfkr/quantum-simulator", rev = "master"}
+uvicorn = "^0.14.0"
+
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
