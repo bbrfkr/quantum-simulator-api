@@ -112,7 +112,7 @@ async def delete_channel(id: int):
     return {"message": "deleted"}
 
 
-@app.put("/channel/{id}/transfrom", response_model=Dict[str, str])
+@app.put("/channel/{id}/transform", response_model=Dict[str, str])
 async def apply_transformer_to_channel(id: int, transformer_id: int):
     channel = await Channel.get(id=id)
     if not channel:
