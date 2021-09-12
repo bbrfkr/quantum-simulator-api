@@ -1,0 +1,32 @@
+version: "3.9"
+services:
+  api:
+    build: .
+    command:
+    - "uvicorn"
+    - "quantum_simulator_api.main:app"
+    - "--host"
+    - "0.0.0.0"
+    - "--reload"
+    volumes:
+    - .:/quantum-simulator-api
+    ports:
+    - 8000:8000
+    env_file:
+    - .env
+  db:
+    image: mongo:4.4
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: quantum_simulator
+      MONGO_DB_USERNAME: app
+      MONGO_DB_PASSWORD: password
+    volumes:
+    - ./mongodb-init.d:/docker-entrypoint-initdb.d
+  db_ui:
+    image: mongo-express:latest
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://root:password@db/
+    ports:
+      - 8081:8081
