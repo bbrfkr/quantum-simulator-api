@@ -1,14 +1,21 @@
-from fastapi import FastAPI, HTTPException
-from quantum_simulator.base.pure_qubits import PureQubits
-import random
-from quantum_simulator.base.observable import Observable
-from quantum_simulator.base.time_evolution import TimeEvolution
-from math import sqrt
-from typing import List, Dict
-from fastapi_contrib.db.utils import setup_mongodb
-from fastapi_contrib.db.models import MongoDBModel
 import logging
+import random
 from enum import IntEnum, auto
+from math import sqrt
+from typing import Dict, List
+
+import quantum_simulator.channel.channel as qc
+from fastapi import FastAPI, HTTPException
+from fastapi_contrib.db.models import MongoDBModel
+from fastapi_contrib.db.utils import setup_mongodb
+from pydantic import Field
+from quantum_simulator.base.observable import Observable
+from quantum_simulator.base.pure_qubits import PureQubits
+from quantum_simulator.base.time_evolution import TimeEvolution
+from quantum_simulator.channel.transformer import (
+    ObserveTransformer,
+    TimeEvolveTransformer,
+)
 
 logger = logging.getLogger("uvicorn")
 
@@ -38,13 +45,16 @@ class State(MongoDBModel):
         collection = "state"
 
 
-class Channel(MongoDBModel):
+class ChannelCreate(MongoDBModel):
     name: str = ""
-    qubit_count: int
-    register_count: int
+    qubit_count: int = Field(1, gt=0)
+    register_count: int = Field(1, gt=0)
     init_transformer_ids: List[int] = []
-    transformer_ids: List[int] = []
+
+
+class Channel(ChannelCreate):
     state_ids: List[int] = []
+    transformer_ids: List[int] = []
 
     class Meta:
         collection = "channel"
@@ -94,7 +104,8 @@ async def get_channel(id: int):
 
 
 @app.post("/channel/", response_model=Dict[str, str])
-async def create_channel(channel: Channel):
+async def create_channel(channel_subdata: ChannelCreate):
+    channel = Channel(**channel_subdata.__dict__)
     id = await channel.save()
     return {"id": id}
 
@@ -110,6 +121,70 @@ async def delete_channel(id: int):
 
     await Channel.delete(id=id)
     return {"message": "deleted"}
+
+
+@app.put("/channel/{id}/initialize", response_model=Dict[str, str])
+async def initialize_state_of_channel(id: int):
+    channel = await Channel.get(id=id)
+    if not channel:
+        raise HTTPException(
+            status_code=404, detail=f"channel with id '{id}' is not found"
+        )
+
+    if len(channel.state_ids) > 0:
+        raise HTTPException(
+            status_code=400, detail=f"channel with id '{id}' is already initialized"
+        )
+
+    init_transformers = []
+    for transformer_id in channel.init_transformer_ids:
+        transformer = await Transformer.get(id=transformer_id)
+        try:
+            if transformer.type == TransformerType.OBSERVE:
+                qc_transformer = ObserveTransformer(
+                    Observable([list(map(complex, row)) for row in transformer.matrix])
+                )
+            elif transformer.type == TransformerType.TIMEEVOLVE:
+                qc_transformer = TimeEvolveTransformer(
+                    TimeEvolution(
+                        [list(map(complex, row)) for row in transformer.matrix]
+                    )
+                )
+        except Exception:
+            raise HTTPException(
+                status_code=404, detail="cannot convert matrix to transformer"
+            )
+        init_transformers.append(qc_transformer)
+        logger.info(init_transformers)
+
+    try:
+        qc_channel = qc.Channel(
+            qubit_count=channel.qubit_count,
+            register_count=channel.register_count,
+            init_transformers=init_transformers,
+        )
+        qc_channel.initialize()
+    except Exception:
+        raise HTTPException(status_code=400, detail="cannot initialize channel")
+
+    qubits = qc_channel.states[0].qubits.matrix.astype(str).tolist()
+    state_id = await State(
+        qubits=qubits, registers=qc_channel.states[0].registers.values
+    ).save()
+    try:
+        await Channel.update_one(
+            filter_kwargs={"id": channel.id},
+            **{
+                "$set": {
+                    "state_ids": [state_id],
+                }
+            },
+        )
+    except Exception:
+        await State.delete(id=state_id)
+        raise HTTPException(status_code=500, detail="failed to update channel")
+
+    return {"state_id": state_id}
 
 
 @app.put("/channel/{id}/transform", response_model=Dict[str, str])
@@ -144,9 +219,8 @@ async def apply_transformer_to_channel(id: int, transformer_id: int):
                 }
             },
         )
-    except Exception as e:
+    except Exception:
         await State.delete(id=state_id)
-        logger.error(e)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
     return {"message": "transformed"}
