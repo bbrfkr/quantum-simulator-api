@@ -47,8 +47,8 @@ class State(MongoDBModel):
 
 class ChannelCreate(MongoDBModel):
     name: str = ""
-    qubit_count: int = Field(1, gt=0)
-    register_count: int = Field(1, gt=0)
+    qubit_count: int = Field(1, ge=1, le=8)
+    register_count: int = Field(1, ge=1, le=8)
     init_transformer_ids: List[int] = []
 
 
