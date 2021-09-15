@@ -5,11 +5,13 @@ from math import sqrt
 from typing import Dict, List, Optional
 
 import quantum_simulator.channel.channel as qc
-import quantum_simulator.channel.state as qs
 import quantum_simulator.channel.registers as qr
+import quantum_simulator.channel.state as qs
 from fastapi import FastAPI, HTTPException
 from fastapi_contrib.db.models import MongoDBModel
 from fastapi_contrib.db.utils import setup_mongodb
+from fastapi_contrib.serializers import openapi
+from fastapi_contrib.serializers.common import ModelSerializer
 from pydantic import Field
 from quantum_simulator.base.observable import Observable
 from quantum_simulator.base.pure_qubits import PureQubits
@@ -26,6 +28,8 @@ app = FastAPI()
 
 
 # models
+
+
 class TransformerType(IntEnum):
     OBSERVE = auto()
     TIMEEVOLVE = auto()
@@ -40,6 +44,35 @@ class Transformer(MongoDBModel):
         collection = "transformer"
 
 
+@openapi.patch
+class TransformerSerializer(ModelSerializer):
+    def validate_matrix(self):
+        try:
+            matrix = [list(map(complex, row)) for row in self.matrix]
+        except Exception:
+            raise HTTPException(
+                status_code=400, detail="given matrix cannot convert to complex matrix"
+            )
+
+        if self.type == TransformerType.OBSERVE:
+            try:
+                Observable(matrix)
+            except Exception:
+                raise HTTPException(
+                    status_code=400, detail="given matrix is not observable"
+                )
+        if self.type == TransformerType.TIMEEVOLVE:
+            try:
+                TimeEvolution(matrix)
+            except Exception:
+                raise HTTPException(
+                    status_code=400, detail="given matrix is not time evolution"
+                )
+
+    class Meta:
+        model = Transformer
+
+
 class State(MongoDBModel):
     qubits: List[List[str]]
     registers: List[int]
@@ -48,19 +81,26 @@ class State(MongoDBModel):
         collection = "state"
 
 
-class ChannelCreate(MongoDBModel):
+class Channel(MongoDBModel):
     name: str = ""
     qubit_count: int = Field(1, ge=1, le=8)
     register_count: int = Field(1, ge=1, le=8)
     init_transformer_ids: List[int] = []
-
-
-class Channel(ChannelCreate):
     state_ids: List[int] = []
     transformer_ids: List[int] = []
 
     class Meta:
         collection = "channel"
+
+
+@openapi.patch
+class ChannelSerializer(ModelSerializer):
+    state_ids: List[int]
+    transformer_ids: List[int]
+
+    class Meta:
+        model = Channel
+        read_only_fields = {"state_ids", "transformer_ids"}
 
 
 # setup
@@ -107,10 +147,9 @@ async def get_channel(id: int):
 
 
 @app.post("/channel/", response_model=Dict[str, str])
-async def create_channel(channel_subdata: ChannelCreate):
-    channel = Channel(**channel_subdata.__dict__)
-    id = await channel.save()
-    return {"id": id}
+async def create_channel(serializer: ChannelSerializer):
+    channel = await serializer.save()
+    return {"id": channel.id}
 
 
 @app.delete("/channel/{id}", response_model=Dict[str, str])
@@ -189,7 +228,9 @@ async def initialize_state_of_channel(id: int):
 
 
 @app.put("/channel/{id}/transform", response_model=Dict[str, str])
-async def apply_transformer_to_channel(id: int, transformer_id: int, register_index: Optional[int] = None):
+async def apply_transformer_to_channel(
+    id: int, transformer_id: int, register_index: Optional[int] = None
+):
     # get channel
     channel = await Channel.get(id=id)
     if not channel:
@@ -216,9 +257,7 @@ async def apply_transformer_to_channel(id: int, transformer_id: int, register_in
             )
         elif transformer.type == TransformerType.TIMEEVOLVE:
             qc_transformer = TimeEvolveTransformer(
-                TimeEvolution(
-                    [list(map(complex, row)) for row in transformer.matrix]
-                )
+                TimeEvolution([list(map(complex, row)) for row in transformer.matrix])
             )
     except Exception:
         raise HTTPException(
@@ -240,7 +279,7 @@ async def apply_transformer_to_channel(id: int, transformer_id: int, register_in
     qc_qubits = Qubits([list(map(complex, row)) for row in pre_state.qubits])
     qc_state = qs.State(qc_qubits, qc_registers)
     qc_channel.states = [qc_state]
-    
+
     # transform!!
     qc_channel.transform(qc_transformer, register_index)
 
@@ -283,31 +322,10 @@ async def get_transformer(id: int):
 
 
 @app.post("/transformer/", response_model=Dict[str, str])
-async def create_transformer(transformer: Transformer):
-    try:
-        matrix = [list(map(complex, row)) for row in transformer.matrix]
-    except Exception:
-        raise HTTPException(
-            status_code=400, detail="given matrix cannot convert to complex matrix"
-        )
-
-    if transformer.type == TransformerType.OBSERVE:
-        try:
-            Observable(matrix)
-        except Exception:
-            raise HTTPException(
-                status_code=400, detail="given matrix is not observable"
-            )
-    if transformer.type == TransformerType.TIMEEVOLVE:
-        try:
-            TimeEvolution(matrix)
-        except Exception:
-            raise HTTPException(
-                status_code=400, detail="given matrix is not time evolution"
-            )
-
-    id = await transformer.save()
-    return {"id": id}
+async def create_transformer(serializer: TransformerSerializer):
+    serializer.validate_matrix()
+    transformer = await serializer.save()
+    return {"id": transformer.id}
 
 
 @app.delete("/transformer/{id}", response_model=Dict[str, str])
