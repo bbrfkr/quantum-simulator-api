@@ -2,7 +2,7 @@ import logging
 import random
 from enum import IntEnum, auto
 from math import sqrt
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import quantum_simulator.channel.channel as qc
 import quantum_simulator.channel.state as qs
@@ -189,7 +189,7 @@ async def initialize_state_of_channel(id: int):
 
 
 @app.put("/channel/{id}/transform", response_model=Dict[str, str])
-async def apply_transformer_to_channel(id: int, transformer_id: int, register_index: int):
+async def apply_transformer_to_channel(id: int, transformer_id: int, register_index: Optional[int] = None):
     # get channel
     channel = await Channel.get(id=id)
     if not channel:
