@@ -234,8 +234,8 @@ async def apply_transformer_to_channel(id: int, transformer_id: int, register_in
             status_code=400,
             detail=f"this channel is not initialized",
         )
-    qc_registers = qr.Registers(len(pre_state.regesters))
-    for index, value in enumerate(pre_state.regesters):
+    qc_registers = qr.Registers(len(pre_state.registers))
+    for index, value in enumerate(pre_state.registers):
         qc_registers.put(index, value)
     qc_qubits = Qubits([list(map(complex, row)) for row in pre_state.qubits])
     qc_state = qs.State(qc_qubits, qc_registers)
