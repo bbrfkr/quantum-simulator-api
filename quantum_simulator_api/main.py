@@ -247,8 +247,8 @@ async def apply_transformer_to_channel(id: int, transformer_id: int, register_in
     # append post state to channel
     post_qubits = qc_channel.states[-1].qubits.matrix.astype(str).tolist()
     post_registers = qc_channel.states[-1].registers.values
-    state_id = await State(qubits=post_qubits, registers=post_registers).save()
-    channel.state_ids.append(state_id)
+    post_state_id = await State(qubits=post_qubits, registers=post_registers).save()
+    channel.state_ids.append(post_state_id)
 
     try:
         await Channel.update_one(
