@@ -88,7 +88,7 @@ class Channel(MongoDBModel):
     init_transformer_ids: List[int] = []
     state_ids: List[int] = []
     transformer_ids: List[int] = []
-    is_finalized: bool = False
+    outcome: Optional[int] = None
 
     class Meta:
         collection = "channel"
@@ -98,11 +98,11 @@ class Channel(MongoDBModel):
 class ChannelSerializer(ModelSerializer):
     state_ids: List[int]
     transformer_ids: List[int]
-    is_finalized: bool
+    outcome: Optional[int]
 
     class Meta:
         model = Channel
-        read_only_fields = {"state_ids", "transformer_ids", "is_finalized"}
+        read_only_fields = {"state_ids", "transformer_ids", "outcome"}
 
 
 # setup
