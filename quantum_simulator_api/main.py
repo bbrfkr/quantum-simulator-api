@@ -28,8 +28,6 @@ app = FastAPI()
 
 
 # models
-
-
 class TransformerType(IntEnum):
     OBSERVE = auto()
     TIMEEVOLVE = auto()
@@ -180,6 +178,9 @@ async def initialize_state_of_channel(id: int):
             status_code=400, detail=f"channel with id '{id}' is already initialized"
         )
 
+    if channel.outcome:
+        raise HTTPException(status_code=400, detail="this channel is already finalized")
+
     init_transformers = []
     for transformer_id in channel.init_transformer_ids:
         transformer = await Transformer.get(id=transformer_id)
@@ -226,7 +227,7 @@ async def initialize_state_of_channel(id: int):
         await State.delete(id=state_id)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
-    return {"state_id": state_id}
+    return {"message": "initialized"}
 
 
 @app.put("/channel/{id}/transform", response_model=Dict[str, str])
@@ -239,11 +240,16 @@ async def apply_transformer_to_channel(
         raise HTTPException(
             status_code=404, detail=f"channel with id '{id}' is not found"
         )
+
     qc_channel = qc.Channel(
         qubit_count=channel.qubit_count,
         register_count=channel.register_count,
         init_transformers=[],
     )
+
+    # check whether channel is finalized
+    if channel.outcome:
+        raise HTTPException(status_code=400, detail="this channel is already finalized")
 
     # get transformer. then set transformer to channel
     transformer = await Transformer.get(id=transformer_id)
@@ -273,7 +279,7 @@ async def apply_transformer_to_channel(
     except Exception:
         raise HTTPException(
             status_code=400,
-            detail=f"this channel is not initialized",
+            detail="this channel is not initialized",
         )
     qc_registers = qr.Registers(len(pre_state.registers))
     for index, value in enumerate(pre_state.registers):
@@ -302,10 +308,65 @@ async def apply_transformer_to_channel(
             },
         )
     except Exception:
-        await State.delete(id=state_id)
+        await State.delete(id=post_state_id)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
     return {"message": "transformed"}
+
+
+@app.put("/channel/{id}/finalize", response_model=Dict[str, str])
+async def finalize_channel(id: int, output_indices: List[int] = None):
+    # get channel
+    channel = await Channel.get(id=id)
+    if not channel:
+        raise HTTPException(
+            status_code=404, detail=f"channel with id '{id}' is not found"
+        )
+    qc_channel = qc.Channel(
+        qubit_count=channel.qubit_count,
+        register_count=channel.register_count,
+        init_transformers=[],
+    )
+
+    # check whether channel is finalized
+    if channel.outcome:
+        raise HTTPException(status_code=400, detail="this channel is already finalized")
+
+    # get previous state. then set the state to channel
+    try:
+        pre_state = await State.get(id=channel.state_ids[-1])
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="this channel is not initialized",
+        )
+    qc_registers = qr.Registers(len(pre_state.registers))
+    for index, value in enumerate(pre_state.registers):
+        qc_registers.put(index, value)
+    qc_qubits = Qubits([list(map(complex, row)) for row in pre_state.qubits])
+    qc_state = qs.State(qc_qubits, qc_registers)
+    qc_channel.states = [qc_state]
+
+    # finalize!!
+    qc_channel.finalize(output_indices)
+
+    # append post state and outcome to channel
+    post_qubits = qc_channel.states[-1].qubits.matrix.astype(str).tolist()
+    post_registers = qc_channel.states[-1].registers.values
+    post_state_id = await State(qubits=post_qubits, registers=post_registers).save()
+    channel.state_ids.append(post_state_id)
+    channel.outcome = qc_channel.outcome
+
+    try:
+        await Channel.update_one(
+            filter_kwargs={"id": channel.id},
+            **{"$set": {"state_ids": channel.state_ids, "outcome": channel.outcome}},
+        )
+    except Exception:
+        await State.delete(id=post_state_id)
+        raise HTTPException(status_code=500, detail="failed to update channel")
+
+    return {"message": "finalized"}
 
 
 # transformer api
