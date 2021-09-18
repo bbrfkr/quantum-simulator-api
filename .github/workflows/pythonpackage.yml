@@ -44,7 +44,7 @@ jobs:
     #     poetry run mypy .
     - name: Test with pytest
       env:
-        PYTEST_MONGODB_DSN: mongodb://app:password@localhost/for_test
+        PYTEST_MONGODB_DSN: mongodb://app:password@db/for_test
         PYTEST_MONGODB_DBNAME: for_test
         PYTEST_FASTAPI_APP: quantum_simulator_api.main.app
       run: |
