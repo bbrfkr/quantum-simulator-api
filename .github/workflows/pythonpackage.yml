@@ -10,11 +10,8 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        python-version:
-        - 3.9
+    runs-on: ubuntu-latest
+    image: python:3.9
 
     services:
       db:
@@ -42,7 +39,6 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
         pip install poetry
         poetry install     
     # - name: static analysis
