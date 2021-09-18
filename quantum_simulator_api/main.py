@@ -21,10 +21,13 @@ from quantum_simulator.channel.transformer import (
     ObserveTransformer,
     TimeEvolveTransformer,
 )
+from quantum_simulator_api.routers import helpers
+
 
 logger = logging.getLogger("uvicorn")
 
 app = FastAPI()
+app.include_router(helpers.router)
 
 
 # models
@@ -118,19 +121,6 @@ def check_complex_str(target: str):
         raise
 
 
-# helper api
-@app.get("/healthz")
-def health():
-    return {"message": "healthy"}
-
-
-@app.get("/random", response_model=Dict[str, str])
-def random_qubit():
-    amp = random.random()
-    qubit = PureQubits([sqrt(amp), sqrt(1 - amp)])
-    return {"qubit": str(list(qubit.vector))}
-
-
 # channel api
 @app.get("/channel/", response_model=Dict[str, List[str]])
 async def list_channel():
@@ -178,7 +168,7 @@ async def initialize_state_of_channel(id: int):
             status_code=400, detail=f"channel with id '{id}' is already initialized"
         )
 
-    if channel.outcome:
+    if channel.outcome is not None:
         raise HTTPException(status_code=400, detail="this channel is already finalized")
 
     init_transformers = []
@@ -248,7 +238,7 @@ async def apply_transformer_to_channel(
     )
 
     # check whether channel is finalized
-    if channel.outcome:
+    if channel.outcome is not None:
         raise HTTPException(status_code=400, detail="this channel is already finalized")
 
     # get transformer. then set transformer to channel
@@ -315,7 +305,7 @@ async def apply_transformer_to_channel(
 
 
 @app.put("/channel/{id}/finalize", response_model=Dict[str, str])
-async def finalize_channel(id: int, output_indices: List[int] = None):
+async def finalize_channel(id: int, output_indices: List[int]):
     # get channel
     channel = await Channel.get(id=id)
     if not channel:
@@ -329,7 +319,7 @@ async def finalize_channel(id: int, output_indices: List[int] = None):
     )
 
     # check whether channel is finalized
-    if channel.outcome:
+    if channel.outcome is not None:
         raise HTTPException(status_code=400, detail="this channel is already finalized")
 
     # get previous state. then set the state to channel
@@ -355,15 +345,16 @@ async def finalize_channel(id: int, output_indices: List[int] = None):
     post_registers = qc_channel.states[-1].registers.values
     post_state_id = await State(qubits=post_qubits, registers=post_registers).save()
     channel.state_ids.append(post_state_id)
-    channel.outcome = qc_channel.outcome
+    channel.outcome = qc_channel.outcome.item()
 
     try:
         await Channel.update_one(
             filter_kwargs={"id": channel.id},
             **{"$set": {"state_ids": channel.state_ids, "outcome": channel.outcome}},
         )
-    except Exception:
+    except Exception as e:
         await State.delete(id=post_state_id)
+        logger.error(e)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
     return {"message": "finalized"}
