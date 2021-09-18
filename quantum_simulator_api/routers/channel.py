@@ -1,122 +1,22 @@
-import logging
-from enum import IntEnum, auto
-from typing import Dict, List, Optional
+import random
+from math import sqrt
+from typing import Dict, List
 
-import quantum_simulator.channel.channel as qc
-import quantum_simulator.channel.registers as qr
-import quantum_simulator.channel.state as qs
-from fastapi import FastAPI, HTTPException
-from fastapi_contrib.db.models import MongoDBModel
-from fastapi_contrib.db.utils import setup_mongodb
-from fastapi_contrib.serializers import openapi
-from fastapi_contrib.serializers.common import ModelSerializer
-from pydantic import Field
-from quantum_simulator.base.observable import Observable
-from quantum_simulator.base.qubits import Qubits
-from quantum_simulator.base.time_evolution import TimeEvolution
-from quantum_simulator.channel.transformer import (
-    ObserveTransformer,
-    TimeEvolveTransformer,
-)
+from fastapi import APIRouter
+from quantum_simulator.base.pure_qubits import PureQubits
+from quantum_simulator.base.qubits import generalize
 
-from quantum_simulator_api.routers import helpers, state
-
-logger = logging.getLogger("uvicorn")
-
-app = FastAPI()
-app.include_router(helpers.router)
-app.include_router(state.router)
-
-# models
-class TransformerType(IntEnum):
-    OBSERVE = auto()
-    TIMEEVOLVE = auto()
-
-
-class Transformer(MongoDBModel):
-    type: TransformerType
-    name: str = ""
-    matrix: List[List[str]]
-
-    class Meta:
-        collection = "transformer"
-
-
-@openapi.patch
-class TransformerSerializer(ModelSerializer):
-    def validate_matrix(self):
-        try:
-            matrix = [list(map(complex, row)) for row in self.matrix]
-        except Exception:
-            raise HTTPException(
-                status_code=400, detail="given matrix cannot convert to complex matrix"
-            )
-
-        if self.type == TransformerType.OBSERVE:
-            try:
-                Observable(matrix)
-            except Exception:
-                raise HTTPException(
-                    status_code=400, detail="given matrix is not observable"
-                )
-        if self.type == TransformerType.TIMEEVOLVE:
-            try:
-                TimeEvolution(matrix)
-            except Exception:
-                raise HTTPException(
-                    status_code=400, detail="given matrix is not time evolution"
-                )
-
-    class Meta:
-        model = Transformer
-
-
-class State(MongoDBModel):
-    qubits: List[List[str]]
-    registers: List[int]
-
-    class Meta:
-        collection = "state"
-
-
-class Channel(MongoDBModel):
-    name: str = ""
-    qubit_count: int = Field(1, ge=1, le=8)
-    register_count: int = Field(1, ge=1, le=8)
-    init_transformer_ids: List[int] = []
-    state_ids: List[int] = []
-    transformer_ids: List[int] = []
-    outcome: Optional[int] = None
-
-    class Meta:
-        collection = "channel"
-
-
-@openapi.patch
-class ChannelSerializer(ModelSerializer):
-    state_ids: List[int]
-    transformer_ids: List[int]
-    outcome: Optional[int]
-
-    class Meta:
-        model = Channel
-        read_only_fields = {"state_ids", "transformer_ids", "outcome"}
-
-
-# setup
-@app.on_event("startup")
-async def startup():
-    setup_mongodb(app)
+router = APIRouter(prefix="/channel", tags=["channel"])
 
 
 # channel api
-@app.get("/channel/", response_model=Dict[str, List[str]])
+@router.get("/", response_model=Dict[str, List[str]])
 async def list_channel():
     channels = await Channel.list()
     return {"channels": [channel["id"] for channel in channels]}
 
 
-@app.get("/channel/{id}", response_model=dict)
+@router.get("/{id}", response_model=dict)
 async def get_channel(id: int):
     channel = await Channel.get(id=id)
     if not channel:
@@ -124,13 +24,13 @@ async def get_channel(id: int):
     return channel
 
 
-@app.post("/channel/", response_model=Dict[str, str])
+@router.post("/", response_model=Dict[str, str])
 async def create_channel(serializer: ChannelSerializer):
     channel = await serializer.save()
     return {"id": channel.id}
 
 
-@app.delete("/channel/{id}", response_model=Dict[str, str])
+@router.delete("/{id}", response_model=Dict[str, str])
 async def delete_channel(id: int):
     channel = await Channel.get(id=id)
     if not channel:
@@ -143,7 +43,7 @@ async def delete_channel(id: int):
     return {"message": "deleted"}
 
 
-@app.put("/channel/{id}/initialize", response_model=Dict[str, str])
+@router.put("/{id}/initialize", response_model=Dict[str, str])
 async def initialize_state_of_channel(id: int):
     channel = await Channel.get(id=id)
     if not channel:
@@ -208,7 +108,7 @@ async def initialize_state_of_channel(id: int):
     return {"message": "initialized"}
 
 
-@app.put("/channel/{id}/transform", response_model=Dict[str, str])
+@router.put("/{id}/transform", response_model=Dict[str, str])
 async def apply_transformer_to_channel(
     id: int, transformer_id: int, register_index: Optional[int] = None
 ):
@@ -292,7 +192,7 @@ async def apply_transformer_to_channel(
     return {"message": "transformed"}
 
 
-@app.put("/channel/{id}/finalize", response_model=Dict[str, str])
+@router.put("/{id}/finalize", response_model=Dict[str, str])
 async def finalize_channel(id: int, output_indices: List[int]):
     # get channel
     channel = await Channel.get(id=id)
@@ -346,43 +246,3 @@ async def finalize_channel(id: int, output_indices: List[int]):
         raise HTTPException(status_code=500, detail="failed to update channel")
 
     return {"message": "finalized"}
-
-
-# transformer api
-@app.get("/transformer/", response_model=Dict[str, List[str]])
-async def list_transformer():
-    transformers = await Transformer.list()
-    return {"transformers": [transformer["id"] for transformer in transformers]}
-
-
-@app.get("/transformer/{id}", response_model=dict)
-async def get_transformer(id: int):
-    transformer = await Transformer.get(id=id)
-    if not transformer:
-        raise HTTPException(status_code=404, detail="not found")
-    return transformer
-
-
-@app.post("/transformer/", response_model=Dict[str, str])
-async def create_transformer(serializer: TransformerSerializer):
-    serializer.validate_matrix()
-    transformer = await serializer.save()
-    return {"id": transformer.id}
-
-
-@app.delete("/transformer/{id}", response_model=Dict[str, str])
-async def delete_transformer(id: int):
-    transformer = await Transformer.get(id=id)
-    if not transformer:
-        raise HTTPException(status_code=404, detail="not found")
-    for channel in await Channel.list():
-        if (
-            id in channel["init_transformer_ids"]
-            or transformer in channel["transformer_ids"]
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail=f"this transformer is used by channel id {channel['id']}",
-            )
-    await Transformer.delete(id=id)
-    return {"message": "deleted"}

@@ -22,8 +22,11 @@ services:
       MONGO_INITDB_DATABASE: quantum_simulator
       MONGO_DB_USERNAME: app
       MONGO_DB_PASSWORD: password
+      MONGO_TESTDB_DATABASE: for_test
     volumes:
     - ./mongodb-init.d:/docker-entrypoint-initdb.d
+    ports:
+      - 27017:27017
   db_ui:
     image: mongo-express:latest
     environment:
