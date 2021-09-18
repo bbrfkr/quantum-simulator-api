@@ -20,14 +20,9 @@ jobs:
       db:
         image: mongo:4.4
         env:
-          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_USERNAME: app
           MONGO_INITDB_ROOT_PASSWORD: password
-          MONGO_INITDB_DATABASE: quantum_simulator
-          MONGO_DB_USERNAME: app
-          MONGO_DB_PASSWORD: password
-          MONGO_TESTDB_DATABASE: for_test
-        volumes:
-          - ${{ github.workspace }}/mongodb-init.d:/docker-entrypoint-initdb.d
+          MONGO_INITDB_DATABASE: for_test
         options: >-
           --health-cmd "mongo --eval 'db.runCommand(\"ping\").ok' localhost:27017/test --quiet"
           --health-interval 10s
