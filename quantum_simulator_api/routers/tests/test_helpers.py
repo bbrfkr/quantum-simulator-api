@@ -1,8 +1,8 @@
+import pytest
 from fastapi.testclient import TestClient
+from quantum_simulator.base.qubits import Qubits
 
 from quantum_simulator_api.main import app
-from quantum_simulator.base.qubits import Qubits
-import pytest
 
 client = TestClient(app)
 
@@ -12,10 +12,11 @@ def test_healthz():
     assert response.status_code == 200
     assert response.json() == {"message": "healthy"}
 
+
 def test_random():
     response = client.get("/random")
     assert response.status_code == 200
-    qubit_matrix = [ list(map(float, row)) for row in response.json()["qubit"] ]
+    qubit_matrix = [list(map(float, row)) for row in response.json()["qubit"]]
     try:
         Qubits(qubit_matrix)
     except Exception:

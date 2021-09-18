@@ -1,7 +1,5 @@
 import logging
-import random
 from enum import IntEnum, auto
-from math import sqrt
 from typing import Dict, List, Optional
 
 import quantum_simulator.channel.channel as qc
@@ -14,15 +12,14 @@ from fastapi_contrib.serializers import openapi
 from fastapi_contrib.serializers.common import ModelSerializer
 from pydantic import Field
 from quantum_simulator.base.observable import Observable
-from quantum_simulator.base.pure_qubits import PureQubits
 from quantum_simulator.base.qubits import Qubits
 from quantum_simulator.base.time_evolution import TimeEvolution
 from quantum_simulator.channel.transformer import (
     ObserveTransformer,
     TimeEvolveTransformer,
 )
-from quantum_simulator_api.routers import helpers
 
+from quantum_simulator_api.routers import helpers
 
 logger = logging.getLogger("uvicorn")
 

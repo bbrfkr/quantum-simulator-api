@@ -1,9 +1,10 @@
-from fastapi import APIRouter
-from typing import Dict, List
 import random
+from math import sqrt
+from typing import Dict, List
+
+from fastapi import APIRouter
 from quantum_simulator.base.pure_qubits import PureQubits
 from quantum_simulator.base.qubits import generalize
-from math import sqrt
 
 router = APIRouter(prefix="", tags=["helpers"])
 
