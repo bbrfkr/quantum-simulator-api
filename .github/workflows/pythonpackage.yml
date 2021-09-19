@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
-    - name: container build
-      run: docker-compose build
     - name: copy environment
       run: cp .env.example .env
+    - name: container build
+      run: docker-compose build
     - name: container up
       run: docker-compose up -d
     - name: test with pytest
