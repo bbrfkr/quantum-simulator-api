@@ -11,44 +11,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        python-version:
-        - 3.9
-
-    services:
-      db:
-        image: mongo:4.4
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: password
-          MONGO_INITDB_DATABASE: quantum_simulator
-          MONGO_DB_USERNAME: app
-          MONGO_DB_PASSWORD: password
-          MONGO_TESTDB_DATABASE: for_test
-        volumes:
-          - ${{ github.workspace }}/mongodb-init.d:/docker-entrypoint-initdb.d
-        ports:
-          - 27017:27017
-
     steps:
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        pip install poetry
-        poetry install     
-    # - name: static analysis
-    #   run: |
-    #     poetry run flake8 .
-    #     poetry run black --check .
-    #     poetry run mypy .
-    - name: Test with pytest
-      env:
-        PYTEST_MONGODB_DSN: mongodb://app:password@localhost/for_test
-        PYTEST_MONGODB_DBNAME: for_test
-        PYTEST_FASTAPI_APP: quantum_simulator_api.main.app
-      run: |
-        poetry run pytest -v .
+    - uses: actions/checkout@v2
+    - name: container build
+      run: docker-compose build
+    - name: copy environment
+      run: cp .env.example .env
+    - name: container up
+      run: docker-compose up -d
+    - name: test with pytest
+      run: docker-compose exec api pytest -v .
