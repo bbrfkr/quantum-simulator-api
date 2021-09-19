@@ -28,12 +28,7 @@ jobs:
           MONGO_TESTDB_DATABASE: for_test
         volumes:
           - ${{ github.workspace }}/mongodb-init.d:/docker-entrypoint-initdb.d
-        options: >-
-          --health-cmd "mongo --eval 'db.runCommand(\"ping\").ok' localhost:27017/test --quiet"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --entrypoint /usr/local/bin/docker-entrypoint.sh
+        options: --entrypoint /usr/local/bin/docker-entrypoint.sh
         ports:
           - 27017:27017
 
