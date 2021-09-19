@@ -9,7 +9,7 @@ from quantum_simulator_api.models.models import State
 import asyncio
 
 # set fastapi contrib config for test
-load_dotenv()
+load_dotenv(f"{os.getcwd()}/.env")
 settings.mongodb_dsn = os.environ["PYTEST_MONGODB_DSN"]
 settings.mongodb_dbname = os.environ["PYTEST_MONGODB_DBNAME"]
 settings.fastapi_app = os.environ["PYTEST_FASTAPI_APP"]
