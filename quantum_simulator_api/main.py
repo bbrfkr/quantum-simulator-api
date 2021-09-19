@@ -1,5 +1,4 @@
 import logging
-from enum import IntEnum, auto
 from typing import Dict, List, Optional
 
 import quantum_simulator.channel.channel as qc
@@ -19,67 +18,18 @@ from quantum_simulator.channel.transformer import (
     TimeEvolveTransformer,
 )
 
-from quantum_simulator_api.routers import helpers, state
+from .models.models import State, Transformer, TransformerType
+from .routers import helpers, state, transformer
 
 logger = logging.getLogger("uvicorn")
 
 app = FastAPI()
 app.include_router(helpers.router)
 app.include_router(state.router)
+app.include_router(transformer.router)
 
 
 # models
-class TransformerType(IntEnum):
-    OBSERVE = auto()
-    TIMEEVOLVE = auto()
-
-
-class Transformer(MongoDBModel):
-    type: TransformerType
-    name: str = ""
-    matrix: List[List[str]]
-
-    class Meta:
-        collection = "transformer"
-
-
-@openapi.patch
-class TransformerSerializer(ModelSerializer):
-    def validate_matrix(self):
-        try:
-            matrix = [list(map(complex, row)) for row in self.matrix]
-        except Exception:
-            raise HTTPException(
-                status_code=400, detail="given matrix cannot convert to complex matrix"
-            )
-
-        if self.type == TransformerType.OBSERVE:
-            try:
-                Observable(matrix)
-            except Exception:
-                raise HTTPException(
-                    status_code=400, detail="given matrix is not observable"
-                )
-        if self.type == TransformerType.TIMEEVOLVE:
-            try:
-                TimeEvolution(matrix)
-            except Exception:
-                raise HTTPException(
-                    status_code=400, detail="given matrix is not time evolution"
-                )
-
-    class Meta:
-        model = Transformer
-
-
-class State(MongoDBModel):
-    qubits: List[List[str]]
-    registers: List[int]
-
-    class Meta:
-        collection = "state"
-
-
 class Channel(MongoDBModel):
     name: str = ""
     qubit_count: int = Field(1, ge=1, le=8)
@@ -347,43 +297,3 @@ async def finalize_channel(id: int, output_indices: List[int]):
         raise HTTPException(status_code=500, detail="failed to update channel")
 
     return {"message": "finalized"}
-
-
-# transformer api
-@app.get("/transformer/", response_model=Dict[str, List[str]])
-async def list_transformer():
-    transformers = await Transformer.list()
-    return {"transformers": [transformer["id"] for transformer in transformers]}
-
-
-@app.get("/transformer/{id}", response_model=dict)
-async def get_transformer(id: int):
-    transformer = await Transformer.get(id=id)
-    if not transformer:
-        raise HTTPException(status_code=404, detail="not found")
-    return transformer
-
-
-@app.post("/transformer/", response_model=Dict[str, str])
-async def create_transformer(serializer: TransformerSerializer):
-    serializer.validate_matrix()
-    transformer = await serializer.save()
-    return {"id": transformer.id}
-
-
-@app.delete("/transformer/{id}", response_model=Dict[str, str])
-async def delete_transformer(id: int):
-    transformer = await Transformer.get(id=id)
-    if not transformer:
-        raise HTTPException(status_code=404, detail="not found")
-    for channel in await Channel.list():
-        if (
-            id in channel["init_transformer_ids"]
-            or transformer in channel["transformer_ids"]
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail=f"this transformer is used by channel id {channel['id']}",
-            )
-    await Transformer.delete(id=id)
-    return {"message": "deleted"}

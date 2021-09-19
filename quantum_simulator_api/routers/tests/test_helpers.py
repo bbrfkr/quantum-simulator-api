@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from quantum_simulator.base.qubits import Qubits
 
-from quantum_simulator_api.main import app
+from ...main import app
 
 client = TestClient(app)
 

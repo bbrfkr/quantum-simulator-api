@@ -2,7 +2,7 @@ from typing import Dict, List
 
 from fastapi import APIRouter, HTTPException
 
-from quantum_simulator_api.models.models import State
+from ..models.models import State
 
 router = APIRouter(prefix="/state", tags=["state"])
 

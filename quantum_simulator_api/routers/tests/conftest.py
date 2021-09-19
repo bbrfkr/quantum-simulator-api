@@ -1,5 +1,6 @@
 import asyncio
 import os
+from math import sqrt
 
 import pytest
 from dotenv import load_dotenv
@@ -7,8 +8,8 @@ from fastapi_contrib.conf import settings
 from fastapi_contrib.db.utils import setup_mongodb
 from pymongo import MongoClient
 
-from quantum_simulator_api.main import app
-from quantum_simulator_api.models.models import State
+from ...main import app
+from ...models.models import State, Transformer, TransformerType
 
 # set fastapi contrib config for test
 load_dotenv(f"{os.getcwd()}/.env")
@@ -38,3 +39,23 @@ async def create_state(event_loop):
     register = [0]
     state_id = await State(qubits=qubit, registers=register).save()
     return state_id
+
+
+@pytest.fixture(scope="function")
+async def create_transformer(event_loop):
+    transformer_type = TransformerType.TIMEEVOLVE
+    name = "test time evolve transformer"
+    matrix = [[sqrt(1 / 2), sqrt(1 / 2)], [sqrt(1 / 2), -sqrt(1 / 2)]]
+    transformer_id = await Transformer(
+        type=transformer_type, name=name, matrix=matrix
+    ).save()
+    return transformer_id
+
+
+@pytest.fixture(scope="function")
+async def transformer_params():
+    transformer_type = TransformerType.OBSERVE
+    name = "test observe transformer"
+    matrix = [[1, 0], [0, 0]]
+    body = {"type": transformer_type, "name": name, "matrix": matrix}
+    return body

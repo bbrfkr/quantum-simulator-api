@@ -1,5 +1,7 @@
 FROM python:3.9
 COPY . /quantum-simulator-api
 WORKDIR /quantum-simulator-api
-RUN pip install .
+RUN pip install poetry && \
+    poetry export --without-hashes -o requirments.txt && \
+    pip install -r requirments.txt
 CMD ["uvicorn", "quantum_simulator_api.main:app", "--host", "0.0.0.0"]
