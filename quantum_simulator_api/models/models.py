@@ -1,6 +1,7 @@
 from enum import IntEnum, auto
-from fastapi_contrib.db.models import MongoDBModel
 from typing import List, Optional
+
+from fastapi_contrib.db.models import MongoDBModel
 from pydantic import Field
 
 
@@ -37,5 +38,3 @@ class Channel(MongoDBModel):
 
     class Meta:
         collection = "channel"
-
-
