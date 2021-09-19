@@ -28,7 +28,6 @@ jobs:
           MONGO_TESTDB_DATABASE: for_test
         volumes:
           - ${{ github.workspace }}/mongodb-init.d:/docker-entrypoint-initdb.d
-        options: --entrypoint /usr/local/bin/docker-entrypoint.sh
         ports:
           - 27017:27017
 
