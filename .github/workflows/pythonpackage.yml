@@ -20,4 +20,4 @@ jobs:
     - name: container up
       run: docker-compose up -d
     - name: test with pytest
-      run: docker-compose exec -T api poetry run pytest -v .
+      run: docker-compose exec -T api pytest -v .
