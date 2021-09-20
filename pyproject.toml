@@ -5,13 +5,26 @@ description = ""
 authors = ["bbrfkr <bbrfkr@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 fastapi = "^0.65.1"
 quantum-simulator = {git = "https://github.com/bbrfkr/quantum-simulator", rev = "master"}
 uvicorn = "^0.14.0"
+pymongo = "^3.11.4"
+fastapi-contrib = {extras = ["mongo"], version = "^0.2.11"}
+pytz = "^2021.1"
 
 
 [tool.poetry.dev-dependencies]
+black = "^21.8b0"
+isort = "^5.9.3"
+flake8 = "^3.9.2"
+mypy = "^0.910"
+pytest = "^6.2.5"
+requests = "^2.26.0"
+python-dotenv = "^0.19.0"
+pymongo = "^3.12.0"
+pytest-asyncio = "^0.15.1"
+asyncio = "^3.4.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
