@@ -41,7 +41,7 @@ async def delete_transformer(id: int):
     return {"message": "deleted"}
 
 
-async def check_channel_dependency(transformer_id: str) -> None:
+async def check_channel_dependency(transformer_id: int) -> None:
     for channel in await Channel.list():
         if (
             transformer_id in channel["init_transformer_ids"]
