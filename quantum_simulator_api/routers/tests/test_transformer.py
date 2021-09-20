@@ -1,9 +1,12 @@
 import asyncio
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from ...main import app
 from ...models.models import Transformer
+from ..transformer import check_channel_dependency
 
 client = TestClient(app)
 
@@ -39,3 +42,21 @@ def test_delete_transformer(use_test_db, create_transformer):
 
     list_response = client.get("/transformer/")
     assert str(create_transformer) not in list_response.json()["transformers"]
+
+    response = client.delete(f"/transformer/{create_transformer}")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_check_channel_dependency(
+    use_test_db, create_channel_with_init_transformer, create_channel_with_transformer
+):
+    with pytest.raises(HTTPException):
+        await check_channel_dependency(
+            create_channel_with_init_transformer["init_transformer_id"]
+        )
+
+    with pytest.raises(HTTPException):
+        await check_channel_dependency(
+            create_channel_with_transformer["transformer_id"]
+        )

@@ -35,14 +35,19 @@ async def delete_transformer(id: int):
     transformer = await Transformer.get(id=id)
     if not transformer:
         raise HTTPException(status_code=404, detail="not found")
+    await check_channel_dependency(id)
+
+    await Transformer.delete(id=id)
+    return {"message": "deleted"}
+
+
+async def check_channel_dependency(transformer_id: str) -> None:
     for channel in await Channel.list():
         if (
-            id in channel["init_transformer_ids"]
-            or transformer in channel["transformer_ids"]
+            transformer_id in channel["init_transformer_ids"]
+            or transformer_id in channel["transformer_ids"]
         ):
             raise HTTPException(
                 status_code=400,
                 detail=f"this transformer is used by channel id {channel['id']}",
             )
-    await Transformer.delete(id=id)
-    return {"message": "deleted"}
