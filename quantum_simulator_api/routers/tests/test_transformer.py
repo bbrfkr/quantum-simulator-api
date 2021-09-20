@@ -31,3 +31,11 @@ def test_create_transformer(use_test_db, transformer_params):
 
     comparison_matrix = [list(map(str, row)) for row in transformer_params["matrix"]]
     assert transformer.matrix == comparison_matrix
+
+
+def test_delete_transformer(use_test_db, create_transformer):
+    response = client.delete(f"/transformer/{create_transformer}")
+    assert response.status_code == 200
+
+    list_response = client.get("/transformer/")
+    assert str(create_transformer) not in list_response.json()["transformers"]
