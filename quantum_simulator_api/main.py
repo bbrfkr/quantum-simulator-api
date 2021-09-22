@@ -53,13 +53,14 @@ class Channel(MongoDBModel):
 
 @openapi.patch
 class ChannelSerializer(ModelSerializer):
+    id: int
     state_ids: List[int]
     transformer_ids: List[int]
     outcome: Optional[int]
 
     class Meta:
         model = Channel
-        read_only_fields = {"state_ids", "transformer_ids", "outcome"}
+        read_only_fields = {"id", "state_ids", "transformer_ids", "outcome"}
 
 
 # setup
