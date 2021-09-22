@@ -1,10 +1,12 @@
 import logging
+import os
 from typing import Dict, List, Optional
 
 import quantum_simulator.channel.channel as qc
 import quantum_simulator.channel.registers as qr
 import quantum_simulator.channel.state as qs
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi_contrib.db.models import MongoDBModel
 from fastapi_contrib.db.utils import setup_mongodb
 from fastapi_contrib.serializers import openapi
@@ -27,6 +29,12 @@ app = FastAPI()
 app.include_router(helpers.router)
 app.include_router(state.router)
 app.include_router(transformer.router)
+
+# cors settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[os.environ.get("ALLOW_ORIGIN", "*")],
+)
 
 
 # models
