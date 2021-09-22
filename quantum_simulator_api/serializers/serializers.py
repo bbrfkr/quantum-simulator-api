@@ -9,6 +9,8 @@ from ..models.models import Transformer, TransformerType
 
 @openapi.patch
 class TransformerSerializer(ModelSerializer):
+    id: int
+
     def validate_matrix(self):
         try:
             matrix = [list(map(complex, row)) for row in self.matrix]
@@ -34,3 +36,4 @@ class TransformerSerializer(ModelSerializer):
 
     class Meta:
         model = Transformer
+        read_only_fields = {"id"}
