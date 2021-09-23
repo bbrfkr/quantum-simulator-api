@@ -9,10 +9,18 @@ router = APIRouter(prefix="/transformer", tags=["transformer"])
 
 
 # transformer api
-@router.get("/", response_model=Dict[str, List[str]])
+@router.get("/", response_model=Dict[str, List[Dict]])
 async def list_transformer():
     transformers = await Transformer.list()
-    return {"transformers": [transformer["id"] for transformer in transformers]}
+    return {
+        "transformers": [
+            {
+                "id": transformer["id"],
+                "name": transformer["name"],
+            }
+            for transformer in transformers
+        ]
+    }
 
 
 @router.get("/{id}", response_model=dict)
