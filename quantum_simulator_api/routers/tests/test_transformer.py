@@ -14,7 +14,9 @@ client = TestClient(app)
 def test_list_transformer(use_test_db, create_transformer):
     response = client.get("/transformer/")
     assert response.status_code == 200
-    assert str(create_transformer) in response.json()["transformers"]
+    assert create_transformer in [
+        transformer["id"] for transformer in response.json()["transformers"]
+    ]
 
 
 def test_get_transformer(use_test_db, create_transformer):
