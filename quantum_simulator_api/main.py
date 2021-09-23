@@ -70,10 +70,18 @@ async def startup():
 
 
 # channel api
-@app.get("/channel/", response_model=Dict[str, List[str]])
+@app.get("/channel/", response_model=Dict[str, List[Dict]])
 async def list_channel():
     channels = await Channel.list()
-    return {"channels": [channel["id"] for channel in channels]}
+    return {
+        "channels": [
+            {
+                "id": channel["id"],
+                "name": channel["name"],
+            }
+            for channel in channels
+        ]
+    }
 
 
 @app.get("/channel/{id}", response_model=dict)
