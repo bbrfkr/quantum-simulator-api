@@ -1,6 +1,5 @@
 import asyncio
 import os
-from math import sqrt
 
 import pytest
 from dotenv import load_dotenv
@@ -45,7 +44,7 @@ async def create_state():
 async def create_transformer():
     transformer_type = TransformerType.TIMEEVOLVE
     name = "test time evolve transformer"
-    matrix = [[sqrt(1 / 2), sqrt(1 / 2)], [sqrt(1 / 2), -sqrt(1 / 2)]]
+    matrix = [["1", "0i"], ["0", "0"]]
     transformer_id = await Transformer(
         type=transformer_type, name=name, matrix=matrix
     ).save()
@@ -56,7 +55,7 @@ async def create_transformer():
 async def transformer_params():
     transformer_type = TransformerType.OBSERVE
     name = "test observe transformer"
-    matrix = [[1, 0], [0, 0]]
+    matrix = [["sqrt(1/2)", "-sqrt(1/2)*1i*1i"], ["-sqrt(1/2)*1i*1i", "-sqrt(1/2)"]]
     body = {"type": transformer_type, "name": name, "matrix": matrix}
     return body
 
