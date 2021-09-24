@@ -8,7 +8,7 @@ from ..models.models import TransformerType
 @pytest.fixture(
     scope="function",
     params=[
-        {"type": TransformerType.OBSERVE, "matrix": [["1", "0"], ["0", "0"]]},
+        {"type": TransformerType.OBSERVE, "matrix": [["1", "0j"], ["0", "0"]]},
         {
             "type": TransformerType.TIMEEVOLVE,
             "matrix": [
@@ -26,7 +26,7 @@ def valid_transformer(request):
     scope="function",
     params=[
         {"type": TransformerType.OBSERVE, "matrix": [["1", "0i"], ["0", "0"]]},
-        {"type": TransformerType.OBSERVE, "matrix": [["1j", "0"], ["0", "0"]]},
+        {"type": TransformerType.OBSERVE, "matrix": [["1ERROR", "0"], ["0", "0"]]},
         {
             "type": TransformerType.TIMEEVOLVE,
             "matrix": [["1", "0"], ["0", "0"]],

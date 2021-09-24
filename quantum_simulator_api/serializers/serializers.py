@@ -5,7 +5,10 @@ from quantum_simulator.base.observable import Observable
 from quantum_simulator.base.time_evolution import TimeEvolution
 
 from ..models.models import Transformer, TransformerType
+from math import sqrt
+import logging
 
+logger = logging.getLogger("uvicorn")
 
 @openapi.patch
 class TransformerSerializer(ModelSerializer):
@@ -13,8 +16,9 @@ class TransformerSerializer(ModelSerializer):
 
     def validate_matrix(self):
         try:
-            matrix = [list(map(complex, row)) for row in self.matrix]
-        except Exception:
+            matrix = [list(map(lambda s: complex(eval(s)), row)) for row in self.matrix]
+        except Exception as e:
+            logger.exception(e)
             raise HTTPException(
                 status_code=400, detail="given matrix cannot convert to complex matrix"
             )
@@ -22,14 +26,16 @@ class TransformerSerializer(ModelSerializer):
         if self.type == TransformerType.OBSERVE:
             try:
                 Observable(matrix)
-            except Exception:
+            except Exception as e:
+                logger.exception(e)
                 raise HTTPException(
                     status_code=400, detail="given matrix is not observable"
                 )
         if self.type == TransformerType.TIMEEVOLVE:
             try:
                 TimeEvolution(matrix)
-            except Exception:
+            except Exception as e:
+                logger.exception(e)
                 raise HTTPException(
                     status_code=400, detail="given matrix is not time evolution"
                 )

@@ -19,7 +19,7 @@ from quantum_simulator.channel.transformer import (
     ObserveTransformer,
     TimeEvolveTransformer,
 )
-
+from .utils.utils import remove_spaces, translate_imaginary_string, translate_imaginary_symbol
 from .models.models import State, Transformer, TransformerType
 from .routers import helpers, state, transformer
 
@@ -115,33 +115,40 @@ async def delete_channel(id: int):
 async def initialize_state_of_channel(id: int):
     channel = await Channel.get(id=id)
     if not channel:
+        message = f"channel with id '{id}' is not found"
+        logger.exception(message)
         raise HTTPException(
-            status_code=404, detail=f"channel with id '{id}' is not found"
+            status_code=404, detail=message
         )
 
     if len(channel.state_ids) > 0:
+        message = f"channel with id '{id}' is already initialized"
+        logger.exception(message)
         raise HTTPException(
-            status_code=400, detail=f"channel with id '{id}' is already initialized"
+            status_code=400, detail=message
         )
 
     if channel.outcome is not None:
-        raise HTTPException(status_code=400, detail="this channel is already finalized")
+        message = f"channel with id='{id}' is already finalized"
+        logger.exception(message)
+        raise HTTPException(status_code=400, detail=message)
 
     init_transformers = []
     for transformer_id in channel.init_transformer_ids:
         transformer = await Transformer.get(id=transformer_id)
+        sanitized_matrix = translate_imaginary_string(remove_spaces(transformer.matrix))
+        evaled_matrix = [list(map(lambda s: complex(eval(s)), row)) for row in sanitized_matrix]
         try:
             if transformer.type == TransformerType.OBSERVE:
                 qc_transformer = ObserveTransformer(
-                    Observable([list(map(complex, row)) for row in transformer.matrix])
+                    Observable(evaled_matrix)
                 )
             elif transformer.type == TransformerType.TIMEEVOLVE:
                 qc_transformer = TimeEvolveTransformer(
-                    TimeEvolution(
-                        [list(map(complex, row)) for row in transformer.matrix]
-                    )
+                    TimeEvolution(evaled_matrix)
                 )
-        except Exception:
+        except Exception as e:
+            logger.exception(e)
             raise HTTPException(
                 status_code=400, detail="cannot convert matrix to transformer"
             )
@@ -154,10 +161,11 @@ async def initialize_state_of_channel(id: int):
     )
     try:
         qc_channel.initialize()
-    except Exception:
+    except Exception as e:
+        logger.exception(e)
         raise HTTPException(status_code=400, detail="cannot initialize channel")
 
-    qubits = qc_channel.states[0].qubits.matrix.astype(str).tolist()
+    qubits = translate_imaginary_symbol(qc_channel.states[0].qubits.matrix.astype(str).tolist())
     registers = qc_channel.states[0].registers.values
     state_id = await State(qubits=qubits, registers=registers).save()
     try:
@@ -169,8 +177,9 @@ async def initialize_state_of_channel(id: int):
                 }
             },
         )
-    except Exception:
+    except Exception as e:
         await State.delete(id=state_id)
+        logger.exception(e)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
     return {"message": "initialized"}
@@ -183,8 +192,10 @@ async def apply_transformer_to_channel(
     # get channel
     channel = await Channel.get(id=id)
     if not channel:
+        message = f"channel with id '{id}' is not found"
+        logger.exception(message)
         raise HTTPException(
-            status_code=404, detail=f"channel with id '{id}' is not found"
+            status_code=404, detail=message
         )
 
     qc_channel = qc.Channel(
@@ -195,25 +206,33 @@ async def apply_transformer_to_channel(
 
     # check whether channel is finalized
     if channel.outcome is not None:
-        raise HTTPException(status_code=400, detail="this channel is already finalized")
+        message = f"channel with id '{id}' is already finalized"
+        logger.exception(message)
+        raise HTTPException(status_code=400, detail=message)
 
     # get transformer. then set transformer to channel
     transformer = await Transformer.get(id=transformer_id)
     if not transformer:
+        message = f"transformer with id '{transformer_id}' is not found"
+        logger.exception(message)
         raise HTTPException(
             status_code=404,
-            detail=f"transformer with id '{transformer_id}' is not found",
+            detail=message,
         )
+
+    sanitized_matrix = translate_imaginary_string(remove_spaces(transformer.matrix))
+    evaled_matrix = [list(map(lambda s: complex(eval(s)), row)) for row in sanitized_matrix]
     try:
         if transformer.type == TransformerType.OBSERVE:
             qc_transformer = ObserveTransformer(
-                Observable([list(map(complex, row)) for row in transformer.matrix])
+                Observable(evaled_matrix)
             )
         elif transformer.type == TransformerType.TIMEEVOLVE:
             qc_transformer = TimeEvolveTransformer(
-                TimeEvolution([list(map(complex, row)) for row in transformer.matrix])
+                TimeEvolution(evaled_matrix)
             )
-    except Exception:
+    except Exception as e:
+        logger.exception(e)
         raise HTTPException(
             status_code=400, detail="cannot convert matrix to transformer"
         )
@@ -222,7 +241,8 @@ async def apply_transformer_to_channel(
     # get previous state. then set the state to channel
     try:
         pre_state = await State.get(id=channel.state_ids[-1])
-    except Exception:
+    except Exception as e:
+        logger.exception(e)
         raise HTTPException(
             status_code=400,
             detail="this channel is not initialized",
@@ -230,7 +250,8 @@ async def apply_transformer_to_channel(
     qc_registers = qr.Registers(len(pre_state.registers))
     for index, value in enumerate(pre_state.registers):
         qc_registers.put(index, value)
-    qc_qubits = Qubits([list(map(complex, row)) for row in pre_state.qubits])
+
+    qc_qubits = Qubits([list(map(complex, row)) for row in translate_imaginary_string(pre_state.qubits)])
     qc_state = qs.State(qc_qubits, qc_registers)
     qc_channel.states = [qc_state]
 
@@ -238,7 +259,7 @@ async def apply_transformer_to_channel(
     qc_channel.transform(qc_transformer, register_index)
 
     # append post state to channel
-    post_qubits = qc_channel.states[-1].qubits.matrix.astype(str).tolist()
+    post_qubits = translate_imaginary_symbol(qc_channel.states[-1].qubits.matrix.astype(str).tolist())
     post_registers = qc_channel.states[-1].registers.values
     post_state_id = await State(qubits=post_qubits, registers=post_registers).save()
     channel.state_ids.append(post_state_id)
@@ -253,8 +274,9 @@ async def apply_transformer_to_channel(
                 }
             },
         )
-    except Exception:
+    except Exception as e:
         await State.delete(id=post_state_id)
+        logger.exception(e)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
     return {"message": "transformed"}
@@ -265,8 +287,10 @@ async def finalize_channel(id: int, output_indices: List[int]):
     # get channel
     channel = await Channel.get(id=id)
     if not channel:
+        message = f"channel with id '{id}' is not found"
+        logger.exception(message)
         raise HTTPException(
-            status_code=404, detail=f"channel with id '{id}' is not found"
+            status_code=404, detail=message
         )
     qc_channel = qc.Channel(
         qubit_count=channel.qubit_count,
@@ -276,12 +300,15 @@ async def finalize_channel(id: int, output_indices: List[int]):
 
     # check whether channel is finalized
     if channel.outcome is not None:
-        raise HTTPException(status_code=400, detail="this channel is already finalized")
+        message = f"channel with id={id} is already finalized"
+        logger.exception(message)
+        raise HTTPException(status_code=400, detail=message)
 
     # get previous state. then set the state to channel
     try:
         pre_state = await State.get(id=channel.state_ids[-1])
-    except Exception:
+    except Exception as e:
+        logger.exception(e)
         raise HTTPException(
             status_code=400,
             detail="this channel is not initialized",
@@ -289,7 +316,8 @@ async def finalize_channel(id: int, output_indices: List[int]):
     qc_registers = qr.Registers(len(pre_state.registers))
     for index, value in enumerate(pre_state.registers):
         qc_registers.put(index, value)
-    qc_qubits = Qubits([list(map(complex, row)) for row in pre_state.qubits])
+
+    qc_qubits = Qubits([list(map(complex, row)) for row in translate_imaginary_string(pre_state.qubits)])
     qc_state = qs.State(qc_qubits, qc_registers)
     qc_channel.states = [qc_state]
 
@@ -297,7 +325,7 @@ async def finalize_channel(id: int, output_indices: List[int]):
     qc_channel.finalize(output_indices)
 
     # append post state and outcome to channel
-    post_qubits = qc_channel.states[-1].qubits.matrix.astype(str).tolist()
+    post_qubits = translate_imaginary_symbol(qc_channel.states[-1].qubits.matrix.astype(str).tolist())
     post_registers = qc_channel.states[-1].registers.values
     post_state_id = await State(qubits=post_qubits, registers=post_registers).save()
     channel.state_ids.append(post_state_id)
@@ -310,7 +338,7 @@ async def finalize_channel(id: int, output_indices: List[int]):
         )
     except Exception as e:
         await State.delete(id=post_state_id)
-        logger.error(e)
+        logger.exception(e)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
     return {"message": "finalized"}
