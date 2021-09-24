@@ -1,3 +1,6 @@
+import logging
+from math import sqrt  # noqa
+
 from fastapi import HTTPException
 from fastapi_contrib.serializers import openapi
 from fastapi_contrib.serializers.common import ModelSerializer
@@ -5,10 +8,9 @@ from quantum_simulator.base.observable import Observable
 from quantum_simulator.base.time_evolution import TimeEvolution
 
 from ..models.models import Transformer, TransformerType
-from math import sqrt
-import logging
 
 logger = logging.getLogger("uvicorn")
+
 
 @openapi.patch
 class TransformerSerializer(ModelSerializer):

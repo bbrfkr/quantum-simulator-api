@@ -19,9 +19,14 @@ from quantum_simulator.channel.transformer import (
     ObserveTransformer,
     TimeEvolveTransformer,
 )
-from .utils.utils import remove_spaces, translate_imaginary_string, translate_imaginary_symbol
+
 from .models.models import State, Transformer, TransformerType
 from .routers import helpers, state, transformer
+from .utils.utils import (
+    remove_spaces,
+    translate_imaginary_string,
+    translate_imaginary_symbol,
+)
 
 logger = logging.getLogger("uvicorn")
 
@@ -117,16 +122,12 @@ async def initialize_state_of_channel(id: int):
     if not channel:
         message = f"channel with id '{id}' is not found"
         logger.exception(message)
-        raise HTTPException(
-            status_code=404, detail=message
-        )
+        raise HTTPException(status_code=404, detail=message)
 
     if len(channel.state_ids) > 0:
         message = f"channel with id '{id}' is already initialized"
         logger.exception(message)
-        raise HTTPException(
-            status_code=400, detail=message
-        )
+        raise HTTPException(status_code=400, detail=message)
 
     if channel.outcome is not None:
         message = f"channel with id='{id}' is already finalized"
@@ -137,16 +138,14 @@ async def initialize_state_of_channel(id: int):
     for transformer_id in channel.init_transformer_ids:
         transformer = await Transformer.get(id=transformer_id)
         sanitized_matrix = translate_imaginary_string(remove_spaces(transformer.matrix))
-        evaled_matrix = [list(map(lambda s: complex(eval(s)), row)) for row in sanitized_matrix]
+        evaled_matrix = [
+            list(map(lambda s: complex(eval(s)), row)) for row in sanitized_matrix
+        ]
         try:
             if transformer.type == TransformerType.OBSERVE:
-                qc_transformer = ObserveTransformer(
-                    Observable(evaled_matrix)
-                )
+                qc_transformer = ObserveTransformer(Observable(evaled_matrix))
             elif transformer.type == TransformerType.TIMEEVOLVE:
-                qc_transformer = TimeEvolveTransformer(
-                    TimeEvolution(evaled_matrix)
-                )
+                qc_transformer = TimeEvolveTransformer(TimeEvolution(evaled_matrix))
         except Exception as e:
             logger.exception(e)
             raise HTTPException(
@@ -165,7 +164,9 @@ async def initialize_state_of_channel(id: int):
         logger.exception(e)
         raise HTTPException(status_code=400, detail="cannot initialize channel")
 
-    qubits = translate_imaginary_symbol(qc_channel.states[0].qubits.matrix.astype(str).tolist())
+    qubits = translate_imaginary_symbol(
+        qc_channel.states[0].qubits.matrix.astype(str).tolist()
+    )
     registers = qc_channel.states[0].registers.values
     state_id = await State(qubits=qubits, registers=registers).save()
     try:
@@ -194,9 +195,7 @@ async def apply_transformer_to_channel(
     if not channel:
         message = f"channel with id '{id}' is not found"
         logger.exception(message)
-        raise HTTPException(
-            status_code=404, detail=message
-        )
+        raise HTTPException(status_code=404, detail=message)
 
     qc_channel = qc.Channel(
         qubit_count=channel.qubit_count,
@@ -221,16 +220,14 @@ async def apply_transformer_to_channel(
         )
 
     sanitized_matrix = translate_imaginary_string(remove_spaces(transformer.matrix))
-    evaled_matrix = [list(map(lambda s: complex(eval(s)), row)) for row in sanitized_matrix]
+    evaled_matrix = [
+        list(map(lambda s: complex(eval(s)), row)) for row in sanitized_matrix
+    ]
     try:
         if transformer.type == TransformerType.OBSERVE:
-            qc_transformer = ObserveTransformer(
-                Observable(evaled_matrix)
-            )
+            qc_transformer = ObserveTransformer(Observable(evaled_matrix))
         elif transformer.type == TransformerType.TIMEEVOLVE:
-            qc_transformer = TimeEvolveTransformer(
-                TimeEvolution(evaled_matrix)
-            )
+            qc_transformer = TimeEvolveTransformer(TimeEvolution(evaled_matrix))
     except Exception as e:
         logger.exception(e)
         raise HTTPException(
@@ -251,7 +248,12 @@ async def apply_transformer_to_channel(
     for index, value in enumerate(pre_state.registers):
         qc_registers.put(index, value)
 
-    qc_qubits = Qubits([list(map(complex, row)) for row in translate_imaginary_string(pre_state.qubits)])
+    qc_qubits = Qubits(
+        [
+            list(map(complex, row))
+            for row in translate_imaginary_string(pre_state.qubits)
+        ]
+    )
     qc_state = qs.State(qc_qubits, qc_registers)
     qc_channel.states = [qc_state]
 
@@ -259,7 +261,9 @@ async def apply_transformer_to_channel(
     qc_channel.transform(qc_transformer, register_index)
 
     # append post state to channel
-    post_qubits = translate_imaginary_symbol(qc_channel.states[-1].qubits.matrix.astype(str).tolist())
+    post_qubits = translate_imaginary_symbol(
+        qc_channel.states[-1].qubits.matrix.astype(str).tolist()
+    )
     post_registers = qc_channel.states[-1].registers.values
     post_state_id = await State(qubits=post_qubits, registers=post_registers).save()
     channel.state_ids.append(post_state_id)
@@ -289,9 +293,7 @@ async def finalize_channel(id: int, output_indices: List[int]):
     if not channel:
         message = f"channel with id '{id}' is not found"
         logger.exception(message)
-        raise HTTPException(
-            status_code=404, detail=message
-        )
+        raise HTTPException(status_code=404, detail=message)
     qc_channel = qc.Channel(
         qubit_count=channel.qubit_count,
         register_count=channel.register_count,
@@ -317,7 +319,12 @@ async def finalize_channel(id: int, output_indices: List[int]):
     for index, value in enumerate(pre_state.registers):
         qc_registers.put(index, value)
 
-    qc_qubits = Qubits([list(map(complex, row)) for row in translate_imaginary_string(pre_state.qubits)])
+    qc_qubits = Qubits(
+        [
+            list(map(complex, row))
+            for row in translate_imaginary_string(pre_state.qubits)
+        ]
+    )
     qc_state = qs.State(qc_qubits, qc_registers)
     qc_channel.states = [qc_state]
 
@@ -325,7 +332,9 @@ async def finalize_channel(id: int, output_indices: List[int]):
     qc_channel.finalize(output_indices)
 
     # append post state and outcome to channel
-    post_qubits = translate_imaginary_symbol(qc_channel.states[-1].qubits.matrix.astype(str).tolist())
+    post_qubits = translate_imaginary_symbol(
+        qc_channel.states[-1].qubits.matrix.astype(str).tolist()
+    )
     post_registers = qc_channel.states[-1].registers.values
     post_state_id = await State(qubits=post_qubits, registers=post_registers).save()
     channel.state_ids.append(post_state_id)

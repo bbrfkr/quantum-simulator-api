@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, List
 
 from fastapi import APIRouter, HTTPException
@@ -5,7 +6,6 @@ from fastapi import APIRouter, HTTPException
 from ..models.models import Channel, Transformer
 from ..serializers.serializers import TransformerSerializer
 from ..utils.utils import remove_spaces, translate_imaginary_string
-import logging
 
 logger = logging.getLogger("uvicorn")
 
@@ -31,7 +31,7 @@ async def list_transformer():
 async def get_transformer(id: int):
     transformer = await Transformer.get(id=id)
     if not transformer:
-        logger.exception(f'transformer with id={id} is not found')
+        logger.exception(f"transformer with id={id} is not found")
         raise HTTPException(status_code=404, detail="not found")
     return transformer
 

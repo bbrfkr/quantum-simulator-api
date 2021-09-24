@@ -1,5 +1,3 @@
-from math import sqrt
-
 import pytest
 
 
@@ -8,10 +6,12 @@ import pytest
     params=[
         [
             [
-                "1 ", "  1",
+                "1 ",
+                "  1",
             ],
             [
-                " 1  ", "1",
+                " 1  ",
+                "1",
             ],
         ],
     ],
@@ -24,7 +24,8 @@ def matrix_includes_space(request):
     scope="function",
     params=[
         [
-            "1j", "(-1)*j",
+            "1j",
+            "(-1)*j",
         ],
     ],
 )
@@ -36,7 +37,8 @@ def matrix_includes_imaginary_symbol(request):
     scope="function",
     params=[
         [
-            "1i", "(-1)*i",
+            "1i",
+            "(-1)*i",
         ],
     ],
 )
