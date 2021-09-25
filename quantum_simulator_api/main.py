@@ -183,7 +183,7 @@ async def initialize_state_of_channel(id: int):
         logger.exception(e)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
-    return {"message": "initialized"}
+    return {"message": "initialized", "state_id": state_id}
 
 
 @app.put("/channel/{id}/transform", response_model=Dict[str, str])
@@ -283,7 +283,10 @@ async def apply_transformer_to_channel(
         logger.exception(e)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
-    return {"message": "transformed"}
+    return {
+        "message": "transformed",
+        "state_id": post_state_id,
+    }
 
 
 @app.put("/channel/{id}/finalize", response_model=Dict[str, str])
@@ -350,4 +353,8 @@ async def finalize_channel(id: int, output_indices: List[int]):
         logger.exception(e)
         raise HTTPException(status_code=500, detail="failed to update channel")
 
-    return {"message": "finalized"}
+    return {
+        "message": "finalized",
+        "state_id": post_state_id,
+        "outcome": channel.outcome,
+    }
