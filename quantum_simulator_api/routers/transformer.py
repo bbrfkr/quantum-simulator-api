@@ -21,6 +21,7 @@ async def list_transformer():
             {
                 "id": transformer["id"],
                 "name": transformer["name"],
+                "target_qubit_count": transformer["target_qubit_count"],
             }
             for transformer in transformers
         ]
@@ -46,6 +47,9 @@ async def create_transformer(serializer: TransformerSerializer):
 
     # set matrix removed spaces
     serializer.__dict__["matrix"] = matrix_removed_spaces
+
+    # set target qubit count
+    serializer.__dict__["target_qubit_count"] = serializer.get_target_qubit_count()
 
     transformer = await serializer.save()
     return {"id": transformer.id}

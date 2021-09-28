@@ -45,8 +45,12 @@ async def create_transformer():
     transformer_type = TransformerType.TIMEEVOLVE
     name = "test time evolve transformer"
     matrix = [["1", "0i"], ["0", "0"]]
+    target_qubit_count = 1
     transformer_id = await Transformer(
-        type=transformer_type, name=name, matrix=matrix
+        type=transformer_type,
+        name=name,
+        matrix=matrix,
+        target_qubit_count=target_qubit_count,
     ).save()
     return transformer_id
 
