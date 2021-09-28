@@ -38,7 +38,8 @@ app.include_router(transformer.router)
 # cors settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.environ.get("ALLOW_ORIGIN", "*")],
+    allow_origins=os.environ.get("ALLOW_ORIGINS", "*").split(","),
+    allow_methods=os.environ.get("ALLOW_METHODS", "*").split(","),
 )
 
 
@@ -341,7 +342,7 @@ async def finalize_channel(id: int, output_indices: List[int]):
     post_registers = qc_channel.states[-1].registers.values
     post_state_id = await State(qubits=post_qubits, registers=post_registers).save()
     channel.state_ids.append(post_state_id)
-    channel.outcome = qc_channel.outcome.item()
+    channel.outcome = int(qc_channel.outcome)
 
     try:
         await Channel.update_one(
