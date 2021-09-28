@@ -45,7 +45,7 @@ class TransformerSerializer(ModelSerializer):
                 )
 
     def get_target_qubit_count(self) -> int:
-        return count_bits(len(self.matrix))
+        return count_bits(len(self.matrix)) - 1
 
     class Meta:
         model = Transformer
