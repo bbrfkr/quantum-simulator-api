@@ -14,6 +14,7 @@ class Transformer(MongoDBModel):
     type: TransformerType
     name: str = ""
     matrix: List[List[str]]
+    target_qubit_count: int
 
     class Meta:
         collection = "transformer"
